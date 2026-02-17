@@ -4,6 +4,8 @@ import os
 from dotenv import load_dotenv
 import json
 from datetime import datetime, timezone
+from typing import Optional
+import pymupdf4llm
 
 # Logging setup
 import logging
@@ -34,6 +36,43 @@ mcp = FastMCP(
     ),
 )
 
+def _resolve_safe(base: Path, rel: str) -> Path:
+    """
+    Resolve *rel* relative to *base* and verify it stays inside *base*.
+    Raises AccessDeniedError on any path-traversal attempt.
+    """
+    rel_clean = rel.lstrip("/\\")
+    candidate = (base / rel_clean).resolve()
+    try:
+        candidate.relative_to(base)
+    except ValueError:
+        raise AccessDeniedError(
+            f"Path traversal detected: '{rel}' escapes the root directory."
+        )
+    return candidate
+
+
+def _assert_pdf(path: Path) -> None:
+    if path.suffix.lower() != ".pdf":
+        raise AccessDeniedError(
+            f"Only .pdf files are accessible. '{path.name}' is not allowed."
+        )
+
+
+def _assert_exists(path: Path) -> None:
+    if not path.is_file():
+        raise FileNotFoundError(f"File not found: '{path.name}'")
+
+def _validate_token(provided: Optional[str]) -> None:
+    if not RESTRICTED_TOKEN:
+        raise AccessDeniedError(
+            "RESTRICTED_TOKEN is not configured on this server. "
+            "Restricted files are currently unavailable."
+        )
+    if provided != RESTRICTED_TOKEN:
+        raise AccessDeniedError(
+            "Invalid or missing token. Access to restricted files is denied."
+        )
 
 @mcp.resource(
     "config://server",
@@ -162,6 +201,141 @@ def resource_allowed_catalog() -> str:
 
     return json.dumps(entries, indent=2)
 
+
+
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+def _find_pdfs(directory: Path, keyword: str) -> list[str]:
+    """
+    Return sorted relative POSIX paths of .pdf files inside *directory*
+    whose filename contains *keyword* (case-insensitive).
+    Empty *keyword* matches everything.
+    """
+    if not directory.is_dir():
+        return []
+    kw = keyword.lower()
+    return sorted(
+        p.relative_to(directory).as_posix()
+        for p in directory.rglob("*.pdf")
+        if kw in p.name.lower()
+    )
+
+
+def _pdf_to_markdown(path: Path) -> str:
+    try:
+        return pymupdf4llm.to_markdown(str(path))
+    except Exception as e:
+        logger.info(e)
+        with open(str(path), 'rb') as f:
+            return f.read()
+
+
+# ===========================================================================
+# TOOLS — caller-driven, parametric operations
+#
+# Tools are the right abstraction for everything that requires a runtime
+# parameter (keyword, file_id, folder, token).  The LLM decides what to
+# fetch; the server executes it.  Token-gating is only possible via tools
+# because resources cannot receive caller-supplied arguments beyond the URI.
+# ===========================================================================
+
+@mcp.tool(
+    name="list_pdf_files",
+    description=(
+        "Search for PDF files by keyword in their filename (case-insensitive). "
+        "Searches both the allowed and restricted folders. "
+        "Returns a list of objects each with 'id', 'folder', and 'filename'. "
+        "Pass an empty string to list all PDF files across both folders. "
+        "Use the returned 'id' and 'folder' values with read_pdf."
+    ),
+    tags={"pdf", "search"},
+)
+def list_pdf_files(keyword: str = "", token: str = None) -> list[dict]:
+    """
+    Parameters
+    ----------
+    keyword : str
+        Case-insensitive substring to match against filenames.
+        Empty string returns every PDF in both folders.
+
+    Returns
+    -------
+    list[dict]
+        Each dict: {'id': str, 'folder': 'allowed'|'restricted', 'filename': str}
+    """
+    results: list[dict] = []
+
+    for rel in _find_pdfs(ALLOWED_DIR, keyword):
+        results.append({
+            "id":       rel,
+            "folder":   "allowed",
+            "filename": Path(rel).name,
+        })
+    if token is not None:
+        _validate_token(token)
+        for rel in _find_pdfs(RESTRICTED_DIR, keyword):
+            results.append({
+                "id":       rel,
+                "folder":   "restricted",
+                "filename": Path(rel).name,
+            })
+
+    return results
+
+@mcp.tool(
+    name="read_pdf",
+    description=(
+        "Read a PDF file and return its full content as Markdown text. "
+        "For 'allowed' files, no token is needed. "
+        "For 'restricted' files, supply the correct token. "
+        "Obtain valid file_id and folder values from list_pdf_files or "
+        "from the catalog://allowed resource."
+    ),
+    tags={"pdf", "read"},
+)
+def read_pdf(
+    file_id: str,
+    folder: str,
+    token: Optional[str] = None,
+) -> str:
+    """
+    Parameters
+    ----------
+    file_id : str
+        Relative path of the PDF (as returned by list_pdf_files).
+    folder : str
+        'allowed' or 'restricted'.
+    token : str, optional
+        Required when folder is 'restricted'.
+
+    Returns
+    -------
+    str
+        Full PDF content converted to GitHub-flavoured Markdown.
+    """
+    folder = folder.strip().lower()
+
+    if folder == "allowed":
+        path = _resolve_safe(ALLOWED_DIR, file_id)
+        _assert_pdf(path)
+        _assert_exists(path)
+
+    elif folder == "restricted":
+        _validate_token(token)
+        path = _resolve_safe(RESTRICTED_DIR, file_id)
+        _assert_pdf(path)
+        _assert_exists(path)
+
+    else:
+        raise ValueError(
+            f"Unknown folder '{folder}'. Must be 'allowed' or 'restricted'."
+        )
+
+    return _pdf_to_markdown(path)
 
 if __name__ == "__main__":
 

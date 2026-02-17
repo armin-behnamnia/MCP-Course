@@ -1,5 +1,157 @@
 {
- "tools": [],
- "resources": [],
- "prompts": []
+ "tools": [
+  {
+   "name": "list_pdf_files",
+   "title": null,
+   "description": "Search for PDF files by keyword in their filename (case-insensitive). Searches both the allowed and restricted folders. Returns a list of objects each with 'id', 'folder', and 'filename'. Pass an empty string to list all PDF files across both folders. Use the returned 'id' and 'folder' values with read_pdf.",
+   "inputSchema": {
+    "properties": {
+     "keyword": {
+      "default": "",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "type": "object",
+    "x-fastmcp-wrap-result": true
+   },
+   "icons": null,
+   "annotations": null,
+   "meta": {
+    "_fastmcp": {
+     "tags": [
+      "pdf",
+      "search"
+     ]
+    }
+   },
+   "execution": null
+  },
+  {
+   "name": "read_pdf",
+   "title": null,
+   "description": "Read a PDF file and return its full content as Markdown text. For 'allowed' files, no token is needed. For 'restricted' files, supply the correct token. Obtain valid file_id and folder values from list_pdf_files or from the catalog://allowed resource.",
+   "inputSchema": {
+    "properties": {
+     "file_id": {
+      "type": "string"
+     },
+     "folder": {
+      "type": "string"
+     },
+     "token": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     }
+    },
+    "required": [
+     "file_id",
+     "folder"
+    ],
+    "type": "object"
+   },
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "type": "object",
+    "x-fastmcp-wrap-result": true
+   },
+   "icons": null,
+   "annotations": null,
+   "meta": {
+    "_fastmcp": {
+     "tags": [
+      "pdf",
+      "read"
+     ]
+    }
+   },
+   "execution": null
+  }
+ ],
+ "resources": [
+  {
+   "name": "ServerConfig",
+   "title": null,
+   "uri": "config://server",
+   "description": "Static configuration and capability metadata for this PDF server. Shows which directories are configured, whether a restricted token is set, and what operations are available. Safe to cache indefinitely \u2014 only changes when the server is restarted with different env vars.",
+   "mimeType": "application/json",
+   "size": null,
+   "icons": null,
+   "annotations": null,
+   "meta": {
+    "_fastmcp": {
+     "tags": [
+      "config",
+      "metadata"
+     ]
+    }
+   }
+  },
+  {
+   "name": "FileStats",
+   "title": null,
+   "uri": "stats://files",
+   "description": "Live file counts for each folder, computed fresh on every read. Unlike config://server this changes as PDFs are added or removed, making it a good candidate for client-side polling or subscription. Returns JSON with total counts, subfolder breakdown, and a timestamp.",
+   "mimeType": "application/json",
+   "size": null,
+   "icons": null,
+   "annotations": null,
+   "meta": {
+    "_fastmcp": {
+     "tags": [
+      "metadata",
+      "stats"
+     ]
+    }
+   }
+  },
+  {
+   "name": "AllowedCatalog",
+   "title": null,
+   "uri": "catalog://allowed",
+   "description": "Complete index of all publicly accessible PDF files. Returns a JSON array of objects, each with 'id' (pass directly to read_pdf), 'filename', 'size_bytes', and 'subfolder'. Recomputed on every read. Clients can cache this and refresh when stats://files shows a count change. Restricted file names are NOT included here \u2014 use list_pdf_files('') for a cross-folder listing.",
+   "mimeType": "application/json",
+   "size": null,
+   "icons": null,
+   "annotations": null,
+   "meta": {
+    "_fastmcp": {
+     "tags": [
+      "allowed",
+      "catalog"
+     ]
+    }
+   }
+  }
+ ],
+ "prompts": [],
+ "resource_templates": []
 }
