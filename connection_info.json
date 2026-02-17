@@ -1,0 +1,42 @@
+{
+ "meta": null,
+ "protocolVersion": "2025-11-25",
+ "capabilities": {
+  "experimental": {},
+  "logging": null,
+  "prompts": {
+   "listChanged": true
+  },
+  "resources": {
+   "subscribe": false,
+   "listChanged": true
+  },
+  "tools": {
+   "listChanged": true
+  },
+  "completions": null,
+  "tasks": {
+   "list": {},
+   "cancel": {},
+   "requests": {
+    "tools": {
+     "call": {}
+    },
+    "prompts": {
+     "get": {}
+    },
+    "resources": {
+     "read": {}
+    }
+   }
+  }
+ },
+ "serverInfo": {
+  "name": "research-server",
+  "title": null,
+  "version": "2.14.5",
+  "websiteUrl": null,
+  "icons": null
+ },
+ "instructions": null
+}

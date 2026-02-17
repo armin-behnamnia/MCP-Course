@@ -1,0 +1,42 @@
+{
+ "tools": [
+  {
+   "name": "read_file",
+   "title": "File Read",
+   "description": "Read a file from the storage.",
+   "inputSchema": {
+    "properties": {
+     "path": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "path"
+    ],
+    "type": "object"
+   },
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "type": "object",
+    "x-fastmcp-wrap-result": true
+   },
+   "icons": null,
+   "annotations": null,
+   "meta": {
+    "_fastmcp": {
+     "tags": []
+    }
+   },
+   "execution": null
+  }
+ ],
+ "resources": [],
+ "prompts": []
+}
