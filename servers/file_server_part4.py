@@ -161,6 +161,244 @@ def resource_allowed_catalog() -> str:
     return json.dumps(entries, indent=2)
 
 
+from fastmcp.prompts import PromptResult, PromptMessage
+
+
+@mcp.prompt(
+    name="find_and_summarize",
+    description=(
+        "Find documents by keyword and summarize a specific section. "
+        "Ideal for targeted research queries."
+    ),
+    tags={"research", "summary"},
+)
+def prompt_find_and_summarize(
+    keyword: str,
+    section: str,
+) -> PromptResult:
+    """
+    Guide the LLM to find documents and extract a specific section.
+    
+    Parameters
+    ----------
+    keyword : str
+        Search term for finding relevant documents
+    section : str
+        Name of the section to extract (e.g., 'Methods', 'Results')
+    """
+    system_msg = (
+        "You are a research assistant with access to PDF documents. "
+        "Always provide citations in the format [Document: X, Section: Y]. "
+        "Extract only the requested section - never load full documents."
+    )
+    
+    user_msg = (
+        f"Please find and summarize the '{section}' section from documents about '{keyword}':\n\n"
+        f"Steps:\n"
+        f"1. Use list_pdf_files(keyword='{keyword}') to find relevant documents\n"
+        f"2. For each document, use extract_headers to verify '{section}' exists\n"
+        f"3. Use extract_section to get the content\n"
+        f"4. Provide a summary with citation: [Document: X, Section: {section}]\n"
+        f"5. If no documents have this section, list available sections"
+    )
+    
+    return PromptResult(
+        messages=[
+            PromptMessage(role="system", content=system_msg),
+            PromptMessage(role="user", content=user_msg),
+        ]
+    )
+
+
+@mcp.prompt(
+    name="compare_sections",
+    description=(
+        "Compare a specific section across two documents. "
+        "Returns differences, similarities, and proper citations."
+    ),
+    tags={"comparison", "analysis"},
+)
+def prompt_compare_sections(
+    doc1: str,
+    doc2: str,
+    section: str,
+) -> str:
+    """
+    Compare the same section across two documents.
+    
+    Parameters
+    ----------
+    doc1, doc2 : str
+        Document identifiers (as returned by list_pdf_files)
+    section : str
+        Section name to compare
+    """
+    return (
+        f"Please compare the '{section}' section between:\n"
+        f"- Document 1: {doc1}\n"
+        f"- Document 2: {doc2}\n\n"
+        f"Steps:\n"
+        f"1. Use extract_section(file_id='{doc1}', header='{section}', folder='allowed')\n"
+        f"2. Use extract_section(file_id='{doc2}', header='{section}', folder='allowed')\n"
+        f"3. Summarize key points from each\n"
+        f"4. Note similarities and differences\n"
+        f"5. Cite as [Document: X, Section: {section}]\n\n"
+        f"If either document doesn't have this section, use extract_headers to suggest alternatives."
+    )
+
+
+@mcp.prompt(
+    name="research_topic",
+    description=(
+        "Comprehensive research workflow: find documents, extract relevant sections, "
+        "synthesize findings with citations. Best for open-ended research questions."
+    ),
+    tags={"research", "comprehensive"},
+)
+def prompt_research_topic(
+    topic: str,
+    max_documents: int = 5,
+) -> PromptResult:
+    """
+    Deep research workflow with proper citation discipline.
+    
+    Parameters
+    ----------
+    topic : str
+        Research topic or question
+    max_documents : int
+        Maximum number of documents to analyze (default: 5)
+    """
+    system_msg = (
+        "You are a thorough research assistant. Your responses must:\n"
+        "1. Include citations for every factual claim: [Document: X, Section: Y]\n"
+        "2. Extract only relevant sections, never full documents\n"
+        "3. Note contradictions between sources\n"
+        "4. Acknowledge gaps in available information\n"
+        "5. Use extract_headers before extract_section to verify structure"
+    )
+    
+    user_msg = (
+        f"Research topic: {topic}\n\n"
+        f"Please conduct a comprehensive analysis:\n\n"
+        f"1. Use list_pdf_files to find up to {max_documents} relevant documents\n"
+        f"2. For each document:\n"
+        f"   a. Use extract_headers to see structure\n"
+        f"   b. Identify relevant sections\n"
+        f"   c. Use extract_section to retrieve content\n"
+        f"3. Synthesize findings with proper citations\n"
+        f"4. Note any contradictions or information gaps\n"
+        f"5. Provide a conclusion\n\n"
+        f"If you need clarification about which sections to focus on, ask me."
+    )
+    
+    return PromptResult(
+        messages=[
+            PromptMessage(role="system", content=system_msg),
+            PromptMessage(role="user", content=user_msg),
+        ]
+    )
+
+
+@mcp.prompt(
+    name="extract_with_citations",
+    description=(
+        "Extract specific information with academic-style citations including direct quotes. "
+        "Enforces rigorous citation discipline."
+    ),
+    tags={"citation", "academic"},
+)
+def prompt_extract_with_citations(
+    research_question: str,
+) -> PromptResult:
+    """
+    Academic research extraction with strict citation requirements.
+    
+    Parameters
+    ----------
+    research_question : str
+        The specific question to answer from the documents
+    """
+    system_msg = (
+        "You are an academic research assistant. Citation requirements:\n\n"
+        "EVERY factual claim must include:\n"
+        "- Source document name\n"
+        "- Section name\n"
+        "- A brief direct quote (1-2 sentences maximum)\n\n"
+        "Format: [Document: filename.pdf, Section: 'Header'] Quote: \"...\"\n\n"
+        "Rules:\n"
+        "- Use extract_section to get precise content\n"
+        "- Never paraphrase without showing the original quote\n"
+        "- If sources conflict, cite both and note the discrepancy\n"
+        "- If information is not in the documents, state this explicitly"
+    )
+    
+    user_msg = (
+        f"Research Question: {research_question}\n\n"
+        f"Please:\n"
+        f"1. Identify relevant documents with list_pdf_files\n"
+        f"2. Use extract_headers to locate relevant sections\n"
+        f"3. Use extract_section to retrieve content\n"
+        f"4. Answer the question with full citations including quotes\n"
+        f"5. If sources disagree, present both views with citations"
+    )
+    
+    return PromptResult(
+        messages=[
+            PromptMessage(role="system", content=system_msg),
+            PromptMessage(role="user", content=user_msg),
+        ]
+    )
+
+
+@mcp.prompt(
+    name="restricted_document_access",
+    description=(
+        "Guided workflow for accessing token-gated restricted documents. "
+        "Handles authentication and section extraction."
+    ),
+    tags={"restricted", "authentication"},
+)
+def prompt_restricted_document_access(
+    document_name: str,
+) -> PromptResult:
+    """
+    Guide for accessing restricted documents with proper token handling.
+    
+    Parameters
+    ----------
+    document_name : str
+        Name or partial name of the restricted document
+    """
+    system_msg = (
+        "You are helping access restricted documents. Important rules:\n"
+        "1. ALWAYS ask the user for the access token - never guess\n"
+        "2. Explain that the token is required for restricted files\n"
+        "3. Only attempt access after receiving a token from the user\n"
+        "4. If the token is invalid, inform the user clearly"
+    )
+    
+    user_msg = (
+        f"I need to access: {document_name}\n\n"
+        f"Please follow this workflow:\n"
+        f"1. Use list_pdf_files(keyword='{document_name}') to find the document\n"
+        f"2. Check if it's in the 'restricted' folder\n"
+        f"3. If restricted, ask me: 'This document requires an access token. Please provide it.'\n"
+        f"4. Once I give you the token, use extract_headers with the token parameter\n"
+        f"5. Show me the available sections\n"
+        f"6. Wait for me to specify which section I need\n"
+        f"7. Then use extract_section with the token to retrieve it"
+    )
+    
+    return PromptResult(
+        messages=[
+            PromptMessage(role="system", content=system_msg),
+            PromptMessage(role="user", content=user_msg),
+        ]
+    )
+
+
+
 # ===========================================================================
 # TOOLS — caller-driven, parametric operations
 #

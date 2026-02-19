@@ -9,6 +9,10 @@
      "keyword": {
       "default": "",
       "type": "string"
+     },
+     "token": {
+      "default": null,
+      "type": "string"
      }
     },
     "type": "object"
@@ -90,6 +94,121 @@
      "tags": [
       "pdf",
       "read"
+     ]
+    }
+   },
+   "execution": null
+  },
+  {
+   "name": "extract_headers",
+   "title": null,
+   "description": "Extract all bold headers from a PDF document. Headers are lines whose entire text is wrapped in double stars (**like this**). Returns an ordered list of header strings, stripped of the surrounding stars. Use the returned header strings with extract_section to retrieve the content beneath a specific header. Internally calls read_pdf, so the same file_id/folder/token rules apply.",
+   "inputSchema": {
+    "properties": {
+     "file_id": {
+      "type": "string"
+     },
+     "folder": {
+      "type": "string"
+     },
+     "token": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     }
+    },
+    "required": [
+     "file_id",
+     "folder"
+    ],
+    "type": "object"
+   },
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "type": "object",
+    "x-fastmcp-wrap-result": true
+   },
+   "icons": null,
+   "annotations": null,
+   "meta": {
+    "_fastmcp": {
+     "tags": [
+      "headers",
+      "pdf"
+     ]
+    }
+   },
+   "execution": null
+  },
+  {
+   "name": "extract_section",
+   "title": null,
+   "description": "Extract the content that follows a specific bold header in a PDF. The header must match exactly one of the headers returned by extract_headers (comparison is case-insensitive and whitespace-tolerant). Content runs from the line after the matched header up to (but not including) the next bold header, or end-of-document. Internally calls read_pdf, so the same file_id/folder/token rules apply.",
+   "inputSchema": {
+    "properties": {
+     "file_id": {
+      "type": "string"
+     },
+     "header": {
+      "type": "string"
+     },
+     "folder": {
+      "type": "string"
+     },
+     "token": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     }
+    },
+    "required": [
+     "file_id",
+     "header",
+     "folder"
+    ],
+    "type": "object"
+   },
+   "outputSchema": {
+    "properties": {
+     "result": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "type": "object",
+    "x-fastmcp-wrap-result": true
+   },
+   "icons": null,
+   "annotations": null,
+   "meta": {
+    "_fastmcp": {
+     "tags": [
+      "pdf",
+      "section"
      ]
     }
    },

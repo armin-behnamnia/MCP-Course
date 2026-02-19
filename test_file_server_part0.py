@@ -9,7 +9,6 @@ async def main():
         resources = await client.list_resources()
         resource_templates = await client.list_resource_templates()
         prompts = await client.list_prompts()
-        print(resource_templates)
         tools_dict = [json.loads(tool.model_dump_json()) for tool in tools]
         resources_dict = [json.loads(res.model_dump_json()) for res in resources]
         resource_templates_dict = [json.loads(res.model_dump_json()) for res in resource_templates]
@@ -20,7 +19,6 @@ async def main():
             "prompts": prompts_dict,
             "resource_templates": resource_templates_dict
         }
-        print(manifest)
         with open('manifest.json', 'w') as f:
             json.dump(manifest, f, indent=1)
         
