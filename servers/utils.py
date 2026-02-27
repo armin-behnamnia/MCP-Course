@@ -185,3 +185,14 @@ def _read_pdf_core(file_id: str, folder: str, token: Optional[str] = None) -> st
         )
 
     return _pdf_to_markdown(path)
+
+def _rough_tokens(text: str) -> int:
+    """Rough 4-chars-per-token heuristic."""
+    return max(1, len(text) // 4)
+
+def _generate_mini_summary(text: str) -> str:
+    text = text.strip()
+    # Logic to trim/summarize text to ~20 words
+    if len(text) <= 203:
+        return text
+    return text[:100].strip() + "..." + text[-100:].strip()

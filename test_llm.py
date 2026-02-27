@@ -15,9 +15,9 @@ logger = logging.getLogger()
 
 load_dotenv()
 
-BASE_URL = "http://localhost:8000/v1"
+BASE_URL = "http://localhost:8015/v1"
 API_KEY = ""
-MODEL_NAME = "Qwen/Qwen3-14B"
+MODEL_NAME = "Qwen/Qwen3-30B-A3B-Thinking-2507-FP8"
 
 client = OpenAI(
     base_url=BASE_URL,

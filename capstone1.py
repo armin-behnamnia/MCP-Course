@@ -7,6 +7,7 @@ import logging
 from fastmcp import Client as MCPClient
 import os
 import asyncio
+from servers.utils import _generate_mini_summary
 
 logging.basicConfig(
     level=logging.INFO,
@@ -18,9 +19,9 @@ logger = logging.getLogger()
 
 load_dotenv()
 
-BASE_URL = "http://localhost:8000/v1"
+BASE_URL = "http://localhost:8015/v1"
 API_KEY = ""
-MODEL_NAME = "Qwen/Qwen3-14B"
+MODEL_NAME = "Qwen/Qwen3-30B-A3B-Thinking-2507-FP8"
 
 client = AsyncOpenAI(
     base_url=BASE_URL,
@@ -214,56 +215,63 @@ async def main():
         print("Ready! Ask me anything about your documents.")
         print("Example: 'What documents do you have about machine learning?'")
         print("-" * 70)
-        
+        wait_for_user = True
         while True:
             try:
-                user_input = input("\n👤 You: ").strip()
-                
-                if not user_input:
-                    continue
-                
-                if user_input.lower() in ("quit", "exit", "q"):
-                    print("\nGoodbye!")
-                    break
-                
-                # Add user message to history
-                conversation_history.append({
-                    "role": "user",
-                    "content": user_input,
-                })
+                if wait_for_user:
+                    user_input = input("\n👤 You: ").strip()
+                    
+                    if not user_input:
+                        continue
+                    
+                    if user_input.lower() in ("quit", "exit", "q"):
+                        print("\nGoodbye!")
+                        break
+                    
+                    # Add user message to history
+                    conversation_history.append({
+                        "role": "user",
+                        "content": user_input,
+                    })
                 available_tools = await mcp_client.list_tools()
                 available_tools = await convert_to_openai_too_format(available_tools)
-                print(available_tools)
                 # Get response
                 print("\n  (Processing...)")
                 response = await client.chat.completions.create(
                     model=MODEL_NAME,
                     messages=conversation_history,
                     temperature=0.4,
-                    max_completion_tokens=1024,
+                    max_completion_tokens=4096,
                     tools=available_tools,
                     tool_choice="auto"
                 )
                 assistant_message = response.choices[0].message
-
+                print_assistant(assistant_message.content)
+                # Update history with assistant response
+                conversation_history.append({
+                    "role": "assistant",
+                    "content": response.choices[0].message.content,
+                })
+                print_assistant("Tool calls: " + str(assistant_message.tool_calls))
                 if assistant_message.tool_calls:
                     for tool_call in assistant_message.tool_calls:
                         tool_name = tool_call.function.name
                         tool_args = json.loads(tool_call.function.arguments)
-                        print(tool_name, tool_args)
+                        print_assistant(f"---> TOOLCALL: NAME {tool_name} -- ARGS {tool_args}")
                         result = await mcp_client.call_tool(tool_name, tool_args)
-
+                        result = result.content[0].text if result.content else ""
+                        print_assistant(f"---> TOOLCALL RESULT: {_generate_mini_summary(result)}")                        
                         conversation_history.append({
                             "role": "tool",
                             "tool_call_id": tool_call.id,
                             "content": json.dumps(result),
-                        })                
+                        })
+                if assistant_message.tool_calls and not assistant_message.content:
+                    wait_for_user = False
+                    print("#### Still working with tool calls, don't need user prompt...")
+                else:
+                    wait_for_user = True
 
-                # Update history with assistant response
-                # conversation_history.append({
-                #     "role": "assistant",
-                #     "content": response["content"],
-                # })
                 
             except KeyboardInterrupt:
                 print("\n\nInterrupted. Type 'quit' to exit.\n")

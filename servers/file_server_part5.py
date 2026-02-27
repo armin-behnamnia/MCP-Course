@@ -5,8 +5,9 @@ from dotenv import load_dotenv
 import json
 from datetime import datetime, timezone
 from typing import Optional
-from utils import _extract_section_content, _parse_bold_headers, _validate_token, _find_pdfs, _read_pdf_core
+from utils import _extract_section_content, _parse_bold_headers, _validate_token, _find_pdfs, _read_pdf_core, _generate_mini_summary
 from fastmcp.prompts import PromptResult, Message
+from openai import OpenAI
 
 # Logging setup
 import logging
@@ -23,6 +24,12 @@ load_dotenv()
 ALLOWED_DIR: Path = Path(os.environ.get("ALLOWED_DIR", "")).resolve()
 RESTRICTED_DIR: Path = Path(os.environ.get("RESTRICTED_DIR", "")).resolve()
 RESTRICTED_TOKEN: str = os.environ.get("RESTRICTED_TOKEN", "")
+
+openai_client = OpenAI(
+    base_url="http://localhost:8015/v1",
+    api_key=""
+)
+MODEL_NAME="Qwen/Qwen3-30B-A3B-Thinking-2507-FP8"
 
 mcp = FastMCP(
     name="PDFFileServer",
@@ -417,7 +424,7 @@ def prompt_restricted_document_access(
         "Pass an empty string to list all PDF files across both folders. "
         "Use the returned 'id' and 'folder' values with read_pdf."
     ),
-    tags={"pdf", "search"},
+    tags={"pdf", "search", "context_reshaping"},
 )
 def list_pdf_files(keyword: str = "", token: str = None) -> list[dict]:
     """
@@ -568,6 +575,50 @@ def extract_section(
     markdown = _read_pdf_core(file_id=file_id, folder=folder, token=token)
     return _extract_section_content(markdown, header)
 
+
+@mcp.tool(tags={"context_reshaping"})
+def summarize_filtered_sections(file_id: str, folder: str, keyword: str, section_name: str, token: Optional[str] = None) -> str:
+    """
+        Performs a targeted cross-document search and generates a concise synthesis.
+        
+        Use this tool when you need to compare how a specific topic (keyword) is 
+        addressed across multiple documents within a specific structural context 
+        (e.g., comparing 'Methodology' or 'Future Work' across several papers).
+
+        Args:
+            keyword: The specific term, technology, or concept to search for within 
+                    the section text (case-insensitive).
+            section_target: The exact name of the section to target (e.g., 'Introduction', 
+                            'Abstract', 'Conclusion', 'Results').
+
+        Returns:
+            A formatted string containing the source filename and a 1-2 sentence 
+            summary of the relevant section for every document where the keyword 
+            was found. Returns a 'not found' message if no matches occur.
+
+        Example:
+            If you want to know how different papers introduce 'Reinforcement Learning', 
+            call: search_and_summarize_sections(keyword="RL", section_target="Introduction")
+    """
+    markdown = _read_pdf_core(file_id=file_id, folder=folder, token=token)
+    
+    section_text = _extract_section_content(markdown, section_name)
+    
+    if section_text and keyword.lower() in section_text.lower():
+        # 3. Generate a concise summary
+        # In a real RAG setup, you'd call a small LLM completion here.
+        # For this MCP tool, we'll simulate the logic or use a helper.
+        summary = _generate_mini_summary(section_text) 
+        
+        return (
+            f"Source: {file_id}\n"
+            f"Section: {section_name}\n"
+            f"Summary: {summary}\n"
+            f"---"
+        )
+            
+    return ""
+
 if __name__ == "__main__":
 
     # Quick self-check: warn if env vars are missing
@@ -587,3 +638,4 @@ if __name__ == "__main__":
 
     print("Starting PDF MCP File Server …")
     mcp.run(transport='http', port=8787)
+
