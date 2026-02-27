@@ -34,6 +34,16 @@ def _pdf_to_markdown(path: Path) -> str:
         with open(str(path), 'rb') as f:
             return f.read()
 
+def _extract_title(file_id: str) -> str:
+    path = _resolve_safe(ALLOWED_DIR, file_id)
+    md_str = _pdf_to_markdown(path)
+    search_result = re.search(r'##.+\n\n', md_str)
+    if search_result:
+        title = re.sub(r'[^A-Za-z0-9 ]+', '', search_result.group(0).strip())
+        return title
+    else:
+        return path.split("/")[-1].split(" ")[-1].split(".")[0]
+
 def _resolve_safe(base: Path, rel: str) -> Path:
     """
     Resolve *rel* relative to *base* and verify it stays inside *base*.

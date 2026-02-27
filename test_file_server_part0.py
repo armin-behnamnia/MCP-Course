@@ -6,21 +6,23 @@ async def main():
     async with Client("http://localhost:8787/mcp") as client:
         con_info = await client.initialize()
         tools = await client.list_tools()
-        resources = await client.list_resources()
-        resource_templates = await client.list_resource_templates()
-        prompts = await client.list_prompts()
-        tools_dict = [json.loads(tool.model_dump_json()) for tool in tools]
-        resources_dict = [json.loads(res.model_dump_json()) for res in resources]
-        resource_templates_dict = [json.loads(res.model_dump_json()) for res in resource_templates]
-        prompts_dict = [json.loads(prompt.model_dump_json()) for prompt in prompts]
-        manifest = {
-            "tools": tools_dict,
-            "resources": resources_dict,
-            "prompts": prompts_dict,
-            "resource_templates": resource_templates_dict
-        }
-        with open('manifest.json', 'w') as f:
-            json.dump(manifest, f, indent=1)
+        for tool in tools:
+            print(tool.name)
+        # resources = await client.list_resources()
+        # resource_templates = await client.list_resource_templates()
+        # prompts = await client.list_prompts()
+        # tools_dict = [json.loads(tool.model_dump_json()) for tool in tools]
+        # resources_dict = [json.loads(res.model_dump_json()) for res in resources]
+        # resource_templates_dict = [json.loads(res.model_dump_json()) for res in resource_templates]
+        # prompts_dict = [json.loads(prompt.model_dump_json()) for prompt in prompts]
+        # manifest = {
+        #     "tools": tools_dict,
+        #     "resources": resources_dict,
+        #     "prompts": prompts_dict,
+        #     "resource_templates": resource_templates_dict
+        # }
+        # with open('manifest.json', 'w') as f:
+        #     json.dump(manifest, f, indent=1)
         
         # with open('tools.json', 'w') as f:
         #     manifest_string = tools.model_dump_json()
