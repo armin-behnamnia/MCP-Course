@@ -23,8 +23,36 @@ class AccessDeniedError(Exception):
 ALLOWED_DIR: Path = Path(os.environ.get("ALLOWED_DIR", "")).resolve()
 RESTRICTED_DIR: Path = Path(os.environ.get("RESTRICTED_DIR", "")).resolve()
 RESTRICTED_TOKEN: str = os.environ.get("RESTRICTED_TOKEN", "")
-BOLD_HEADER_RE = re.compile(r"^\s*\*\*(.+?)\*\*\s*$")
+BOLD_HEADER_RE = re.compile(r"^\s*\*\*([^\n*]{3,100}?)\*\*\s*$")
+BAD_PREFIXES = (
+    "figure", "fig.", "table", "tab.", "equation", "eq.", "appendix"
+)
 
+
+def looks_like_header(text: str) -> bool:
+    t = text.strip()
+
+    # Too long → likely paragraph
+    if len(t.split()) > 12:
+        return False
+
+    # Ends with punctuation → usually not header
+    if t.endswith((".", ":", ";")):
+        return False
+
+    # Common non-header prefixes
+    if t.lower().startswith(BAD_PREFIXES):
+        return False
+
+    # Avoid pure names (very heuristic)
+    if len(t.split()) <= 3 and all(w[0].isupper() for w in t.split()):
+        return False
+
+    # Must have at least one capitalized word
+    if not any(w[0].isupper() for w in t.split() if w):
+        return False
+
+    return True
 
 def _pdf_to_markdown(path: Path) -> str:
     try:
@@ -37,7 +65,7 @@ def _pdf_to_markdown(path: Path) -> str:
 def _extract_title(file_id: str) -> str:
     path = _resolve_safe(ALLOWED_DIR, file_id)
     md_str = _pdf_to_markdown(path)
-    search_result = re.search(r'##.+\n\n', md_str)
+    search_result = re.search(r'#.+\n\n', md_str)
     if search_result:
         title = re.sub(r'[^A-Za-z0-9 ]+', '', search_result.group(0).strip())
         return title
@@ -104,19 +132,28 @@ def _normalize_header(text: str):
     return text
 
 def _parse_bold_headers(markdown: str) -> list[str]:
-    """
-    Return an ordered list of headers found in *markdown*.
-    A header is any line whose entire content (ignoring surrounding
-    whitespace) is wrapped in double stars: **Header Text**
-    """
+    lines = markdown.splitlines()
     headers = []
-    for line in markdown.splitlines():
-        m = BOLD_HEADER_RE.match(line)
-        if m:
-            text = m.group(1)
-            headers.append(_normalize_header(text))
-    return headers
 
+    for i, line in enumerate(lines):
+        m = BOLD_HEADER_RE.match(line)
+        if not m:
+            m = line
+        else:
+            m = m.group(1)
+
+        text = m.strip()
+
+        # Context check
+        prev_blank = i == 0 or lines[i-1].strip() == ""
+        next_blank = i == len(lines)-1 or lines[i+1].strip() == ""
+
+        if not (prev_blank and next_blank):
+            continue
+        if looks_like_header(text):
+            headers.append(_normalize_header(text))
+
+    return headers
 
 def _extract_section_content(markdown: str, header: str) -> str:
     """
@@ -134,12 +171,17 @@ def _extract_section_content(markdown: str, header: str) -> str:
     start_idx: int | None = None
     for i, line in enumerate(lines):
         m = BOLD_HEADER_RE.match(line)
+        m2 = looks_like_header(line)
         if m:
             text = m.group(1)
             if _normalize_header(text) == target:
                 start_idx = i + 1   # content begins on the line after the header
                 break
-
+        elif m2:
+            text = line.strip()
+            if _normalize_header(text) == target:
+                start_idx = i + 1
+                break
     if start_idx is None:
         raise ValueError(
             f"Header '{header}' not found in the document. "

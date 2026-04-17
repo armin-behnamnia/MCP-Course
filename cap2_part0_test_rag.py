@@ -1,68 +1,22 @@
 import os
 from fastapi import FastAPI, Query
-from langchain_community.document_loaders import PyPDFDirectoryLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from servers.rag_service import search_papers, initialize_index
+from pathlib import Path
+
+current_dir = Path(os.path.dirname(__file__))
 
 app = FastAPI(title="LRAA Search Service")
 
-# --- Configuration ---
-PAPER_DIRECTORY = "./data/allowed"  # Put your PDFs here
-DB_PATH = "./chroma_db"
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
-
-# Initialize Embeddings (runs locally)
-embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
-
-def initialize_index():
-    """Indexes all PDFs in the directory."""
-    if not os.path.exists(PAPER_DIRECTORY):
-        os.makedirs(PAPER_DIRECTORY)
-        print(f"Created {PAPER_DIRECTORY}. Add your PDFs there.")
-        return None
-
-    # 1. Load all PDFs from the directory
-    loader = PyPDFDirectoryLoader(PAPER_DIRECTORY)
-    documents = loader.load()
-    
-    # 2. Split into chunks
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
-    chunks = text_splitter.split_documents(documents)
-    
-    # 3. Create/Update Vector Store
-    vector_db = Chroma.from_documents(
-        documents=chunks,
-        embedding=embeddings,
-        persist_directory=DB_PATH
-    )
-    return vector_db
-
-# Global variable to hold our database
-vector_db = initialize_index()
+vector_db = initialize_index(str(current_dir / "files" / "rag"))  # Index PDFs in the current directory
 
 @app.get("/search")
-async def search_papers(query: str, n: int = 3):
+async def search(query: str, n: int = 3):
     """
     Returns the top n related chunks for a given query.
     """
-    if not vector_db:
-        return {"error": "No documents indexed. Add PDFs to the directory and restart."}
     
-    # Perform similarity search
-    results = vector_db.similarity_search_with_score(query, k=n)
+    return search_papers(vector_db, query, n)
     
-    # Format response
-    output = []
-    for doc, score in results:
-        output.append({
-            "source": doc.metadata.get("source"),
-            "page": doc.metadata.get("page"),
-            "score": score,
-            "content": doc.page_content
-        })
-    
-    return {"query": query, "results": output}
 
 @app.post("/reindex")
 async def reindex():
@@ -73,4 +27,4 @@ async def reindex():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8016)
+    uvicorn.run(app, host="localhost", port=8016)

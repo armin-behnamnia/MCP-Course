@@ -3,10 +3,10 @@ import asyncio
 import json
 from openai import AsyncOpenAI
 openai_client = AsyncOpenAI(
-    base_url="http://localhost:8015/v1",
+    base_url="http://localhost:11434/v1",
     api_key=""
 )
-MODEL_NAME="Qwen/Qwen3-30B-A3B-Thinking-2507-FP8"
+MODEL_NAME="qwen3:0.6b"
 
 async def convert_to_openai_format(mcp_tools):
     available_tools = [

@@ -4,13 +4,13 @@ import json
 
 async def main():
     async with Client("http://localhost:8787/mcp") as client:
-        result = await client.call_tool(name='list_pdf_files', arguments={'keyword': 'ent', 'token': 'MCI-ACADEMY-MCP-COURSE'})
+        result = await client.call_tool(name='list_pdf_files', arguments={'keyword': 'Reward Hacking', 'token': 'MCI-ACADEMY-MCP-COURSE'})
         result = eval(result.content[0].text) if len(result.content) else []
         for doc in result:
             headers = await client.call_tool(name='extract_headers', arguments={'file_id': doc['id'], 'folder': doc['folder'], 'token': 'MCI-ACADEMY-MCP-COURSE'})
             has_header = False
             for header in eval(headers.content[0].text):
-                print(header)
+                print(f"Found Header: |{header}|")
                 if header == 'introduction':
                     has_header = True
             print('-' * 100)

@@ -13,6 +13,7 @@ import shutil
 import re
 from .rag_service import search_papers, initialize_index
 import requests
+from pydantic import BaseModel, Field
 
 # Logging setup
 import logging
@@ -29,14 +30,30 @@ load_dotenv()
 ALLOWED_DIR: Path = Path(os.environ.get("ALLOWED_DIR", "")).resolve()
 RESTRICTED_DIR: Path = Path(os.environ.get("RESTRICTED_DIR", "")).resolve()
 RESTRICTED_TOKEN: str = os.environ.get("RESTRICTED_TOKEN", "")
-RAG_DIR: str = Path(os.environ.get("ALLOWED_DIR", "")).resolve()
+RAG_DIR: str = Path(os.environ.get("RAG_DIR", "")).resolve()
 RAG_DB_DIR: str = Path(__file__).parent / "./chroma_db"
+LLM_BASE_URL = "http://localhost:11434/v1"
+PROXY = "http://192.168.10.2:3129" #"socks5://192.168.10.9:1089"
+
+class ArticleInfo(BaseModel):
+    source: str = Field("crossref-api")
+    trusted: bool = False
+    official_title: str = Field("", description="The official title of the article")
+    publisher: str = Field("", description="The publisher of the article")
+    year: int = Field(0, description="The year of publication")
+    type: str = Field("", description="The type of the article")
+    doi: str = Field("", description="The DOI of the article")
+    citations: int = Field(0, description="The number of citations")
+    authors: list[str] = Field([], description="The authors of the article")
+    error: str = Field("", description="Error message if the article info is invalid")
+
+
 print(RAG_DB_DIR, RAG_DIR)
 openai_client = OpenAI(
-    base_url="http://localhost:8015/v1",
+    base_url=LLM_BASE_URL,
     api_key=""
 )
-MODEL_NAME="Qwen/Qwen3-30B-A3B-Thinking-2507-FP8"
+MODEL_NAME="qwen3:0.6b"
 
 mcp = FastMCP(
     name="PDFFileServer",
@@ -502,7 +519,6 @@ def search_research_papers(query: str, n: int = 3) -> str:
 # Security: Strict Regex for DOI validation (Prevents Injection)
 DOI_PATTERN = re.compile(r'^10\.\d{4,9}/[-._;()/:A-Z0-9]+$', re.I)
 
-
 def sanitize_input(text: str) -> str:
     return re.sub(r'[^\w\s\-\.,]', '', text).strip()
 
@@ -512,8 +528,10 @@ def sanitize_data(data: str) -> str:
         return ""
     return re.sub(r'<[^>]*?>', '', data).strip()
 
+
+
 @mcp.tool()
-def validate_and_fetch_metadata(title: str) -> str:
+def validate_and_fetch_metadata(title: str) -> ArticleInfo:
     """
     Searches a paper title and fetches official metadata from Crossref.
     Handles malicious input and sanitizes external responses.
@@ -530,21 +548,27 @@ def validate_and_fetch_metadata(title: str) -> str:
     try:
         # 2. External API Call
         params = {"query.title": clean_title, "rows": 1}
-        response = requests.get("https://api.crossref.org/works", timeout=10, params=params)
+        response = requests.get("https://api.crossref.org/works", timeout=10, params=params, proxies={"http": PROXY, "https": PROXY})
         if response.status_code != 200:
             return {"error": f"API returned status {response.status_code}"}
 
         item = response.json().get("message", {})['items'][0] if response.json().get("message", {}).get('items') else {}
         print(response.json())
         # 3. Response Sanitization (Defense against Malicious API Response)
-        return json.dumps({
-            "official_title": sanitize_data(item.get("title", [""])[0]),
-            "publisher": sanitize_data(item.get("publisher", "")),
-            "year": item.get("created", {}).get("date-parts", [[None]])[0][0],
-        })
+        return ArticleInfo(
+            source = "crossref-api",
+            trusted = False,
+            official_title = sanitize_data(item.get("title", [""])[0]),
+            publisher = sanitize_data(item.get("publisher", "")),
+            year = item.get("created", {}).get("date-parts", [[None]])[0][0],
+            type = item.get("type", ""),
+            doi = item.get("DOI", ""),
+            citations = item.get("is-referenced-by-count", 0),
+            authors = item.get("author", []),            
+        )
 
     except Exception as e:
-        return '{"error": "Connection failed: ' + str(e) + '"}'
+        return ArticleInfo(error=f'Connection Failed: {str(e)}')
 
     
 if __name__ == "__main__":

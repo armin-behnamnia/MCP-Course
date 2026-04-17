@@ -577,7 +577,7 @@ def extract_section(
 
 
 @mcp.tool(tags={"context_reshaping"})
-def summarize_filtered_sections(file_id: str, folder: str, keyword: str, section_name: str, token: Optional[str] = None) -> str:
+def summarize_filtered_sections(keyword: str, section_target: str, token: Optional[str] = None, max_summaries: int = 2) -> list[dict]:
     """
         Performs a targeted cross-document search and generates a concise synthesis.
         
@@ -590,6 +590,7 @@ def summarize_filtered_sections(file_id: str, folder: str, keyword: str, section
                     the section text (case-insensitive).
             section_target: The exact name of the section to target (e.g., 'Introduction', 
                             'Abstract', 'Conclusion', 'Results').
+            token: Optional access token for restricted documents.  
 
         Returns:
             A formatted string containing the source filename and a 1-2 sentence 
@@ -600,24 +601,27 @@ def summarize_filtered_sections(file_id: str, folder: str, keyword: str, section
             If you want to know how different papers introduce 'Reinforcement Learning', 
             call: search_and_summarize_sections(keyword="RL", section_target="Introduction")
     """
-    markdown = _read_pdf_core(file_id=file_id, folder=folder, token=token)
-    
-    section_text = _extract_section_content(markdown, section_name)
-    
-    if section_text and keyword.lower() in section_text.lower():
-        # 3. Generate a concise summary
-        # In a real RAG setup, you'd call a small LLM completion here.
-        # For this MCP tool, we'll simulate the logic or use a helper.
-        summary = _generate_mini_summary(section_text) 
+    pdf_files = list_pdf_files(keyword="", token=token)
+    results = []
+    for pdf in pdf_files:
+        markdown = _read_pdf_core(file_id=pdf['id'], folder=pdf['folder'], token=token)
         
-        return (
-            f"Source: {file_id}\n"
-            f"Section: {section_name}\n"
-            f"Summary: {summary}\n"
-            f"---"
-        )
+        section_text = _extract_section_content(markdown, section_target)
+        
+        if section_text and keyword.lower() in section_text.lower():
+            # 3. Generate a concise summary
+            # In a real RAG setup, you'd call a small LLM completion here.
+            # For this MCP tool, we'll simulate the logic or use a helper.
+            summary = _generate_mini_summary(section_text) 
             
-    return ""
+            results.append({
+                "source": pdf['id'],
+                "summary": summary
+            })
+        if len(results) >= max_summaries:
+            break
+            
+    return results
 
 if __name__ == "__main__":
 

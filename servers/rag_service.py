@@ -2,15 +2,20 @@ import os
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
+
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from fastapi import FastAPI
+from pathlib import Path
 
 app = FastAPI(title="LRAA Automated Service")
 
-        
+
 # --- Configuration ---
-DB_PATH = os.path.join(os.path.dirname(__file__), "./chroma_db")
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+DB_PATH = str(Path(os.path.dirname(__file__)).parent / "./chroma_db")
+EMBEDDING_MODEL = str(Path(os.path.dirname(__file__)).parent / "./models/all-MiniLM-L6-v2")
+
+print(f"DB path is {DB_PATH}")
+print(f"Embedding model path is {EMBEDDING_MODEL}")
 
 # Initialize Embeddings (runs locally)
 embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
@@ -41,9 +46,7 @@ def initialize_index(parent_directory: str):
 # --- Background Task Configuration ---
 
 
-
-
-def search_papers(vector_db, query: str, n: int = 3):
+def search_papers(vector_db: Chroma, query: str, n: int = 3):
     """
     Returns the top n related chunks for a given query.
     """

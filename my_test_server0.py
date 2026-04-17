@@ -7,5 +7,7 @@ async def main():
         resources = await client.list_resources()
         print(resources)
 
+        tools = await client.list_tools()
+        print(tools)
         
 asyncio.run(main())
