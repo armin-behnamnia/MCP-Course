@@ -193,6 +193,9 @@ def _extract_section_content(markdown: str, header: str) -> str:
     for line in lines[start_idx:]:
         if BOLD_HEADER_RE.match(line):
             break
+        m2 = looks_like_header(line)
+        if m2:
+            break
         section_lines.append(line)
 
     return "\n".join(section_lines).strip()

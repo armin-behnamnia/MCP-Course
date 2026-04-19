@@ -21,7 +21,7 @@ load_dotenv()
 
 BASE_URL = "http://localhost:11434/v1"
 API_KEY = ""
-MODEL_NAME = "qwen3:0.6b"
+MODEL_NAME = "qwen3:4b"
 
 client = AsyncOpenAI(
     base_url=BASE_URL,

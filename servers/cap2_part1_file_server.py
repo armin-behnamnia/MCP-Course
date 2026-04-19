@@ -417,8 +417,10 @@ def summarize_filtered_sections(keyword: str, section_target: str, token: Option
     for pdf in pdf_files:
         markdown = _read_pdf_core(file_id=pdf['id'], folder=pdf['folder'], token=token)
         
-        section_text = _extract_section_content(markdown, section_target)
-        
+        try:
+            section_text = _extract_section_content(markdown, section_target)
+        except ValueError:
+            continue  # Section not found, skip to next document    
         if section_text and keyword.lower() in section_text.lower():
             # 3. Generate a concise summary
             # In a real RAG setup, you'd call a small LLM completion here.

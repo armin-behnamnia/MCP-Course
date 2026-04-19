@@ -9,10 +9,9 @@ from pathlib import Path
 
 app = FastAPI(title="LRAA Automated Service")
 
-
 # --- Configuration ---
-DB_PATH = str(Path(os.path.dirname(__file__)).parent / "./chroma_db")
-EMBEDDING_MODEL = str(Path(os.path.dirname(__file__)).parent / "./models/all-MiniLM-L6-v2")
+DB_PATH = str(Path(os.path.dirname(__file__)).parent.parent / "./chroma_db")
+EMBEDDING_MODEL = str(Path(os.path.dirname(__file__)).parent.parent / "./models/all-MiniLM-L6-v2")
 
 print(f"DB path is {DB_PATH}")
 print(f"Embedding model path is {EMBEDDING_MODEL}")
@@ -67,3 +66,8 @@ def search_papers(vector_db: Chroma, query: str, n: int = 3):
         })
     
     return {"query": query, "results": output}
+
+if __name__ == "__main__":
+    vactor_db = initialize_index(str(Path(os.path.dirname(__file__)).parent / "./files/rag"))
+    print(search_papers(vector_db=vactor_db, query="What are the main challenges in Reinforcement Learning from Human Feedback?", n=3))
+    

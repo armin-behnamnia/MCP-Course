@@ -41,30 +41,6 @@ When answering questions:
  
 Be concise. If the answer is not in the documents, say so explicitly.
 """
-
-async def chat(
-        mcp_client: MCPClient,
-        messages: list[dict],
-        max_turns: int = 10,
-    ) -> dict:
-        """
-        Run a conversation with tool use enabled.
-        
-        Returns the final assistant message after all tool calls are resolved.
-        """
-        # conversation = list(messages)
-        
-        for turn in range(max_turns):
-            response = await client.chat.completions.create(
-                model=MODEL_NAME,
-                messages=messages,
-                temperature=0.4,
-                max_completion_tokens=8192,
-                tools=mcp_client.list_tools(),
-                tool_choice="auto"
-            )
-            
-
         
 def print_header(text: str) -> None:
     width = 70

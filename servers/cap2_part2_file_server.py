@@ -44,7 +44,7 @@ class ArticleInfo(BaseModel):
     type: str = Field("", description="The type of the article")
     doi: str = Field("", description="The DOI of the article")
     citations: int = Field(0, description="The number of citations")
-    authors: list[str] = Field([], description="The authors of the article")
+    authors: list[dict] = Field([], description="The authors of the article")
     error: str = Field("", description="Error message if the article info is invalid")
 
 

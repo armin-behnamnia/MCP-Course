@@ -23,13 +23,15 @@ async def convert_to_openai_format(mcp_tools):
     return available_tools
 
 async def main():
-    async with Client("http://localhost:8787/mcp") as client:
-        available_tools = await client.list_tools()
-        ctx_tools = [tool for tool in available_tools if "rag" in tool.meta.get('fastmcp', {}).get('tags', [])]
-        available_tools = await convert_to_openai_format(ctx_tools)
-        result = await client.call_tool("search_research_papers", arguments={"query": "reinforcement learning", "n": 4})
+    async with Client("http://localhost:8031/mcp") as client:
+        # available_tools = await client.list_tools()
+        # ctx_tools = [tool for tool in available_tools if "rag" in tool.meta.get('fastmcp', {}).get('tags', [])]
+        result = await client.call_tool("search_research_papers", arguments={"query": "RLHF most critical challenge", "n": 3})
+        print(result.content[0].text)
+        # available_tools = await convert_to_openai_format(ctx_tools)
+        # result = await client.call_tool("search_research_papers", arguments={"query": "reinforcement learning", "n": 4})
         # print(result.content[0].text)
-        print(json.dumps(json.loads(result.content[0].text), indent=1))
+        # print(json.dumps(json.loads(result.content[0].text), indent=1))
 
 
 asyncio.run(main())

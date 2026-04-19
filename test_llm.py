@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from logging import Logger
 from openai import OpenAI
 import logging
+import httpx
 
 logging.basicConfig(
     level=logging.INFO,
@@ -15,13 +16,15 @@ logger = logging.getLogger()
 
 load_dotenv()
 
-BASE_URL = "http://localhost:8015/v1"
-API_KEY = ""
-MODEL_NAME = "Qwen/Qwen3-30B-A3B-Thinking-2507-FP8"
+BASE_URL = "https://api.avalai.ir/v1"
+API_KEY = "aa-xJ9pYmEj0xNrvRND8y3QNRJqmhE90muFHwclBx8mxnHhODp0"
+MODEL_NAME = "gemini-2.5-flash-lite" #"qwen3:0.6b"
+PROXY = "http://192.168.10.2:3129"
 
 client = OpenAI(
     base_url=BASE_URL,
     api_key=API_KEY,
+    http_client=httpx.Client(proxy=PROXY)
 )
 
 prompt = "Explain MCP (Model Context Protocol) in one sentence. write"

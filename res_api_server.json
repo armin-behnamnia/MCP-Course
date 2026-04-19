@@ -1,0 +1,26 @@
+{
+ "status": "ok",
+ "content": {
+  "publisher": "Springer US",
+  "doi": "10.1007/978-0-387-30164-8_417",
+  "source": "Crossref",
+  "title": "Inverse Reinforcement Learning",
+  "author": [
+   {
+    "given": "Pieter",
+    "family": "Abbeel",
+    "sequence": "first",
+    "affiliation": []
+   },
+   {
+    "given": "Andrew Y.",
+    "family": "Ng",
+    "sequence": "additional",
+    "affiliation": []
+   }
+  ],
+  "year": 2010,
+  "citations": 13
+ },
+ "error": ""
+}

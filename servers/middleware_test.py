@@ -9,6 +9,12 @@ class LoggingMiddleware(Middleware):
         return result
 
 mcp = FastMCP("Middleware Test Server", "0.1")
+
+@mcp.tool()
+def echo(message: str) -> str:
+    """Echoes back the input message."""
+    return message
+
 mcp.add_middleware(LoggingMiddleware())
 
 print("Starting PDF MCP Middleware Test File Server …")
